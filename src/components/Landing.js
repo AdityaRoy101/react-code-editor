@@ -184,7 +184,7 @@ const Landing = () => {
 
     const options = {
       method: "POST",
-      url: `https://my-worker-project.mr-adityaroy101.workers.dev/api/submissions`,
+      url: `https://my-worker-project.aditya-code-engine.workers.dev/api/submissions`,
       params: { 
         base64_encoded: "true", 
         fields: "*",
@@ -227,7 +227,7 @@ const Landing = () => {
     
     const options = {
       method: "GET",
-      url: `https://my-worker-project.mr-adityaroy101.workers.dev/api/submissions/` + token,
+      url: `https://my-worker-project.aditya-code-engine.workers.dev/api/submissions/` + token,
       params: { 
         base64_encoded: "true", 
         fields: "*",
