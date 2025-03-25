@@ -206,7 +206,7 @@ const Landing = () => {
       .catch((err) => {
         let error = err.response ? err.response.data : err;
         // get error status
-        let status = err.response ? err.response.status : 500;
+        let status = err.response ? err?.response?.status : 500;
         console.log("status", status);
         if (status === 429) {
           console.log("too many requests", status);
