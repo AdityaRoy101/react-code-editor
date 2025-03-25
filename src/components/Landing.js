@@ -57,9 +57,59 @@ const Landing = () => {
   const [theme, setTheme] = useState("cobalt");
   const [language, setLanguage] = useState(languageOptions[0]);
   const [serverString, setServerString] = useState(p.REACT_APP_API_URL_server1);
+  // const [hashSignature, setHashSignature] = useState("");
 
   const enterPress = useKeyPress("Enter");
   const ctrlPress = useKeyPress("Control");
+
+  // Function to encrypt hash with HMAC-SHA256
+  async function encryptHash(timeHash, key) {
+    // Convert the input strings to Uint8Arrays
+    const encoder = new TextEncoder();
+    const timeHashBuffer = encoder.encode(timeHash);
+    const keyBuffer = encoder.encode(key);
+
+    // Import the key for use with the Web Crypto API
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyBuffer,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    // Generate the HMAC signature
+    const signature = await crypto.subtle.sign(
+      'HMAC',
+      cryptoKey,
+      timeHashBuffer
+    );
+
+    // Convert the signature to a base64 string
+    return btoa(String.fromCharCode(...new Uint8Array(signature)));
+  }
+
+  // Generate time hash signature
+  const generateTimeHashSignature = async () => {
+    const currentDate = new Date();
+    
+    // Format date components with leading zeros
+    const day = currentDate.getUTCDate().toString().padStart(2, '0');
+    const hour = currentDate.getUTCHours().toString().padStart(2, '0');
+    const minute = currentDate.getUTCMinutes().toString().padStart(2, '0');
+
+    // Create time hash in format DDHHMI
+    const timeHash = `${day}${hour}${minute}`;
+    
+    // Get encryption key from environment variable
+    const encryptKey = p.REACT_APP_ENCRYPT_KEY || 'w2O5R4Bt';
+    
+    // Generate signature using the HMAC function
+    const signature = await encryptHash(timeHash, encryptKey);
+    
+    // setHashSignature(signature);
+    return signature;
+  };
 
   const serverSelection = (server) => {
     if(server === 'server1')
@@ -117,26 +167,31 @@ const Landing = () => {
       }
     }
   };
-  const handleCompile = () => {
+  const handleCompile = async () => {
     setProcessing(true);
+    
+    // Generate the hash signature
+    const signature = await generateTimeHashSignature();
+    
     const formData = {
       language_id: language.id,
       // encode source code in base64
       source_code: btoa(code),
-      stdin: btoa(customInput),
+      stdin: btoa(customInput)
     };
     
-    selectServers()
+    selectServers();
 
     const options = {
       method: "POST",
-      url: process.env.REACT_APP_RAPID_API_URL,
-      params: { base64_encoded: "true", fields: "*" },
+      url: `https://my-worker-project.mr-adityaroy101.workers.dev/api/submissions`,
+      params: { 
+        base64_encoded: "true", 
+        fields: "*",
+        hashSignature: signature // Add hash signature as query parameter
+      },
       headers: {
-        "content-type": "application/json",
-        "Content-Type": "application/json",
-        "X-RapidAPI-Host": process.env.REACT_APP_RAPID_API_HOST,
-        "X-RapidAPI-Key": serverString,
+        "Content-Type": "application/json"
       },
       data: formData,
     };
@@ -151,7 +206,7 @@ const Landing = () => {
       .catch((err) => {
         let error = err.response ? err.response.data : err;
         // get error status
-        let status = err.response.status;
+        let status = err.response ? err.response.status : 500;
         console.log("status", status);
         if (status === 429) {
           console.log("too many requests", status);
@@ -167,14 +222,17 @@ const Landing = () => {
   };
 
   const checkStatus = async (token) => {
+    // Generate a fresh hash signature for this request
+    const signature = await generateTimeHashSignature();
+    
     const options = {
       method: "GET",
-      url: process.env.REACT_APP_RAPID_API_URL + "/" + token,
-      params: { base64_encoded: "true", fields: "*" },
-      headers: {
-        "X-RapidAPI-Host": process.env.REACT_APP_RAPID_API_HOST,
-        "X-RapidAPI-Key": serverString,
-      },
+      url: `https://my-worker-project.mr-adityaroy101.workers.dev/api/submissions/` + token,
+      params: { 
+        base64_encoded: "true", 
+        fields: "*",
+        hashSignature: signature // Add hash signature as query parameter
+      }
     };
     try {
       let response = await axios.request(options);
